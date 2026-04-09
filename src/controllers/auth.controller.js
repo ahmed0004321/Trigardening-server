@@ -9,17 +9,32 @@ const register = async (req, res) => {
     const db = getDB();
     const usersCollection = db.collection('users');
 
-    const { name, phone, password } = req.body;
+    const { name, phone, thana, district, address, email, secondaryPhone, password, photoURL } = req.body;
 
     // Simple validation
     if (!name || !phone || !password) {
       return res.status(400).json({ message: 'Please provide all required fields' });
     }
 
-    // Check if user already exists
-    const existingUser = await usersCollection.findOne({ phone });
+    // Professional Password Validation
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    if (password.length < 5 || !hasUpperCase || !hasNumber) {
+      return res.status(400).json({ 
+        message: 'Password must be at least 5 characters long and contain at least one uppercase letter and one number' 
+      });
+    }
+
+    // Check if user already exists (EITHER phone OR email)
+    const existingUser = await usersCollection.findOne({ 
+      $or: [{ phone }, { email }] 
+    });
+    
     if (existingUser) {
-      return res.status(400).json({ message: 'User already exists with this phone number' });
+      const message = existingUser.phone === phone 
+        ? 'User already exists with this phone number' 
+        : 'User already exists with this email';
+      return res.status(400).json({ message });
     }
 
     // Hash password
@@ -30,6 +45,13 @@ const register = async (req, res) => {
     const newUser = {
       name,
       phone,
+      thana,
+      district,
+      address,
+      email,
+      secondaryPhone,
+      photoURL,
+      role: 'customer',
       password: hashedPassword,
       createdAt: new Date(),
       status: 'active' // For now, we skip OTP validation and just mark them active
@@ -54,7 +76,9 @@ const register = async (req, res) => {
       user: {
         id: result.insertedId,
         name: newUser.name,
-        phone: newUser.phone
+        phone: newUser.phone,
+        photoURL: newUser.photoURL,
+        role: newUser.role
       }
     });
 
@@ -103,7 +127,9 @@ const login = async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
-        phone: user.phone
+        phone: user.phone,
+        photoURL: user.photoURL,
+        role: user.role || 'customer'
       }
     });
 
@@ -119,13 +145,13 @@ const getMe = async (req, res) => {
   try {
     const db = getDB();
     const usersCollection = db.collection('users');
-    
+
     // Convert string ID back to ObjectId if necessary
     // Native MongoDB requires ObjectId for _id matches
     const { ObjectId } = require('mongodb');
-    
+
     const user = await usersCollection.findOne({ _id: new ObjectId(req.user.id) });
-    
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
