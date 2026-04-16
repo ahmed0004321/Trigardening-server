@@ -135,7 +135,7 @@ app.get('/api/auth/me', protect, async (req, res) => {
 const startServer = async () => {
   try {
     await connectDB();
-    app.listen(PORT, () => console.log(`Server running on port ${PORT} (Simplified Mode)`));
+    app.listen(PORT, () => console.log(`Server running on port ${PORT} (Auth-Only Mode)`));
   } catch (error) {
     console.error('Failed to start server:', error);
   }
